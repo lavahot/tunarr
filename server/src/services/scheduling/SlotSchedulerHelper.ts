@@ -111,7 +111,11 @@ export class SlotSchedulerHelper {
       });
     }
 
-    return slotPrograms;
+    const detectedBreaks = await this.programDB.getAdBreakOffsetsByProgramIds(
+      uniq(slotPrograms.map((program) => program.uuid)),
+    );
+
+    return { programs: slotPrograms, detectedBreaks };
   }
 
   async materializeCustomShowPrograms(slots: BaseSlot[]) {

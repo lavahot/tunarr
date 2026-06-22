@@ -40,6 +40,32 @@ export const SlotFiller = z.object({
 
 export type SlotFiller = z.infer<typeof SlotFiller>;
 
+/**
+ * Break rules that compute break offsets purely from the program's duration,
+ * without relying on any detected/persisted markers. These may be used on their
+ * own or as a fallback for the `detected` rule when a program has no detected
+ * break points.
+ */
+export const MidRollComputedBreakRuleSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('fixed_interval'),
+    intervalMs: z.number().positive(),
+  }),
+  z.object({
+    type: z.literal('percentage'),
+    points: z.array(z.number().gt(0).lt(100)).nonempty(),
+  }),
+  z.object({
+    type: z.literal('initial_then_interval'),
+    initialDelayMs: z.number().positive(),
+    intervalMs: z.number().positive(),
+  }),
+]);
+
+export type MidRollComputedBreakRule = z.infer<
+  typeof MidRollComputedBreakRuleSchema
+>;
+
 export const MidRollBreakRuleSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('fixed_interval'),
@@ -53,6 +79,17 @@ export const MidRollBreakRuleSchema = z.discriminatedUnion('type', [
     type: z.literal('initial_then_interval'),
     initialDelayMs: z.number().positive(),
     intervalMs: z.number().positive(),
+  }),
+  // V3 break rule. Places breaks at break points detected offline from the
+  // program's media (e.g. black frames + silence). When a program has no
+  // detected break points, `fallback` (if set) is used to compute them from the
+  // program duration instead.
+  z.object({
+    type: z.literal('detected'),
+    // Drop detected break points that are closer together than this. Helps
+    // collapse a cluster of black frames into a single break.
+    minSpacingMs: z.number().positive().optional(),
+    fallback: MidRollComputedBreakRuleSchema.optional(),
   }),
 ]);
 
@@ -121,6 +158,34 @@ export const MidRollConfigSchema = z
   );
 
 export type MidRollConfig = z.infer<typeof MidRollConfigSchema>;
+
+/**
+ * Thresholds for the offline ad-break detection pass. Detection runs ffmpeg
+ * `blackdetect` (and optionally `silencedetect`) over a program's media and
+ * persists the resulting break points so the `detected` mid-roll break rule can
+ * place flex breaks where TV stations would naturally cut to advertisements.
+ */
+export const AdBreakDetectionConfigSchema = z.object({
+  // Minimum duration (seconds) a sequence of black frames must last to count as
+  // a candidate break. Maps to ffmpeg blackdetect `d`.
+  minBlackDurationSec: z.number().positive().default(0.5),
+  // Black-pixel threshold for blackdetect `pic_th` (0-1).
+  blackPixelThreshold: z.number().gt(0).lte(1).default(0.98),
+  // When true, a black segment must overlap a silent segment to be considered a
+  // real break (reduces false positives from fades within the program).
+  requireSilence: z.boolean().default(true),
+  // Noise floor (dB) below which audio is considered silent. Maps to ffmpeg
+  // silencedetect `noise`. Typically a negative value such as -30.
+  silenceThresholdDb: z.number().default(-30),
+  // Minimum duration (seconds) of silence to count. Maps to silencedetect `d`.
+  minSilenceDurationSec: z.number().positive().default(0.3),
+  // Collapse detected break points that are closer than this many ms.
+  minBreakSpacingMs: z.number().nonnegative().default(5 * 60 * 1000),
+});
+
+export type AdBreakDetectionConfig = z.infer<
+  typeof AdBreakDetectionConfigSchema
+>;
 
 export const LinkableSlot = z.object({
   id: z.uuid(),

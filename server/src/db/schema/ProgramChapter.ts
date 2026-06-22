@@ -6,7 +6,12 @@ import type { Insertable } from 'kysely';
 import type { KyselifyBetter } from './KyselifyBetter.ts';
 import { ProgramVersion } from './ProgramVersion.ts';
 
-export const ProgramChapterType = ['chapter', 'intro', 'outro'] as const;
+export const ProgramChapterType = [
+  'chapter',
+  'intro',
+  'outro',
+  'ad_break',
+] as const;
 export type ProgramChapterType = TupleToUnion<typeof ProgramChapterType>;
 
 export const ProgramChapter = sqliteTable('program_chapter', {

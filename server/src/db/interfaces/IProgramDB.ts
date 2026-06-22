@@ -61,6 +61,10 @@ export interface IProgramDB {
     batchSize?: number,
   ): Promise<MarkRequired<ProgramWithRelationsOrm, 'externalIds'>[]>;
 
+  getAdBreakOffsetsByProgramIds(
+    ids: string[] | readonly string[],
+  ): Promise<Map<string, number[]>>;
+
   getProgramGrouping(
     id: string,
   ): Promise<Maybe<ProgramGroupingOrmWithRelations>>;

@@ -183,6 +183,7 @@ export class RandomSlotScheduler {
     seed: number[] = createEntropy(),
     discardCount: number = 0,
     startTime: dayjs.Dayjs = dayjs.tz(),
+    detectedBreaks?: ReadonlyMap<string, readonly number[]>,
   ): SlotScheduleResult {
     this.validateSchedule();
 
@@ -263,6 +264,7 @@ export class RandomSlotScheduler {
           currSlot,
           currSlot.midRollConfig,
           context.random,
+          detectedBreaks,
         ),
       );
 

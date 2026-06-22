@@ -93,6 +93,7 @@ export async function scheduleTimeSlots(
   seed: number[] = createEntropy(),
   discardCount: number = 0,
   startTime: dayjs.Dayjs = dayjs.tz(),
+  detectedBreaks?: ReadonlyMap<string, readonly number[]>,
 ): Promise<TimeSlotScheduleResult> {
   const mt = MersenneTwister19937.seedWithArray(seed).discard(discardCount);
   const random = new Random(mt);
@@ -309,7 +310,13 @@ export async function scheduleTimeSlots(
     }
 
     const finalPrograms: PaddedProgram[] = paddedPrograms.flatMap((pp) =>
-      applyMidRollBreaks(pp, currSlot, currSlot.midRollConfig, random),
+      applyMidRollBreaks(
+        pp,
+        currSlot,
+        currSlot.midRollConfig,
+        random,
+        detectedBreaks,
+      ),
     );
 
     // We have two options here if there is remaining time in the slot

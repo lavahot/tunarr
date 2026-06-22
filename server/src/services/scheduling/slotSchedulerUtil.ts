@@ -848,6 +848,7 @@ export function applyMidRollBreaks(
   slot: SlotImpl<BaseSlot>,
   midRollConfig: MidRollConfig | undefined,
   random: Random,
+  detectedBreaks?: ReadonlyMap<string, readonly number[]>,
 ): PaddedProgram[] {
   if (!midRollConfig || slot.getMidFillerListIds().length === 0) {
     return [paddedProgram];
@@ -868,8 +869,16 @@ export function applyMidRollBreaks(
     }
   }
 
+  const detectedOffsetsMs = detectedBreaks?.get(
+    (program as CondensedContentProgram).id,
+  );
+
   const programDurationMs = program.duration;
-  const breakPoints = resolveBreakPoints(programDurationMs, midRollConfig);
+  const breakPoints = resolveBreakPoints(
+    programDurationMs,
+    midRollConfig,
+    detectedOffsetsMs,
+  );
   if (!breakPoints) return [paddedProgram];
 
   if (midRollConfig.strategy === 'lazy') {

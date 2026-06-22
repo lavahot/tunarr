@@ -123,9 +123,53 @@ export class BasicProgramRepository {
   }
 
   /**
-   * Given an array of program IDs, return the set of those IDs which exist in
-   * the database.
+   * Fetch detected ad-break offsets (in ms from the start of the program) for
+   * the given program ids. Offsets come from `program_chapter` rows of type
+   * `ad_break`, associated via `program_version`. The returned map only
+   * contains entries for programs that have at least one detected break.
    */
+  async getAdBreakOffsetsByProgramIds(
+    ids: string[] | readonly string[],
+    batchSize: number = 500,
+  ): Promise<Map<string, number[]>> {
+    const result = new Map<string, number[]>();
+    const uniqIds = uniq(ids);
+    if (uniqIds.length === 0) {
+      return result;
+    }
+
+    for (const idChunk of chunk(uniqIds, batchSize)) {
+      const versions = await this.drizzleDB.query.programVersion.findMany({
+        where: (fields, { inArray }) => inArray(fields.programId, idChunk),
+        columns: { programId: true },
+        with: {
+          chapters: {
+            where: (fields, { eq }) => eq(fields.chapterType, 'ad_break'),
+            columns: { startTime: true },
+          },
+        },
+      });
+
+      for (const version of versions) {
+        if (version.chapters.length === 0) {
+          continue;
+        }
+        const offsets = result.get(version.programId) ?? [];
+        for (const chapter of version.chapters) {
+          offsets.push(chapter.startTime);
+        }
+        result.set(version.programId, offsets);
+      }
+    }
+
+    for (const [programId, offsets] of result) {
+      result.set(programId, uniq(offsets).sort((a, b) => a - b));
+    }
+
+    return result;
+  }
+
+
   async filterNonExistentProgramIds(
     programIds: string[],
   ): Promise<Set<string>> {

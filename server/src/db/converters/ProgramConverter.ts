@@ -196,6 +196,7 @@ export class ProgramConverter {
               .with('chapter', () => 0)
               .with('intro', () => 1)
               .with('outro', () => 2)
+              .with('ad_break', () => 3)
               .exhaustive(),
             c.index,
           ],

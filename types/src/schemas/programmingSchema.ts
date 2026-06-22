@@ -152,7 +152,7 @@ export const MediaChapter = z.object({
   startTime: z.number().nonnegative(),
   endTime: z.number().nonnegative(),
   title: z.string().nullish(),
-  chapterType: z.enum(['chapter', 'intro', 'outro']).default('chapter'),
+  chapterType: z.enum(['chapter', 'intro', 'outro', 'ad_break']).default('chapter'),
 });
 
 export const MediaLocation = LocalMediaLocation.or(MediaSourceMediaLocation);

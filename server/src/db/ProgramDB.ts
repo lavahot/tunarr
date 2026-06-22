@@ -107,6 +107,12 @@ export class ProgramDB implements IProgramDB {
     return this.basicProg.getProgramsByIds(ids, batchSize);
   }
 
+  getAdBreakOffsetsByProgramIds(
+    ids: string[] | readonly string[],
+  ): Promise<Map<string, number[]>> {
+    return this.basicProg.getAdBreakOffsetsByProgramIds(ids);
+  }
+
   getProgramGrouping(
     id: string,
   ): Promise<Maybe<ProgramGroupingOrmWithRelations>> {
