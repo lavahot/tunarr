@@ -1,15 +1,25 @@
 import type { ProgramExternalIdType } from '@/db/custom_types/ProgramExternalIdType.js';
 import { KEYS } from '@/types/inject.js';
+import { isNonEmptyString } from '@/util/index.js';
 import type { Maybe } from '@/types/util.js';
+import { and, eq } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import type { Kysely } from 'kysely';
-import { chunk, isEmpty, uniq } from 'lodash-es';
+import { chunk, isEmpty, maxBy, uniq } from 'lodash-es';
 import type { MarkRequired } from 'ts-essentials';
+import { v4 } from 'uuid';
+import { ProgramChapter } from '../schema/ProgramChapter.ts';
 import type { ProgramExternalId } from '../schema/ProgramExternalId.ts';
 import { ProgramGroupingType } from '../schema/ProgramGrouping.ts';
 import type { DB } from '../schema/db.ts';
 import type { ProgramWithRelationsOrm } from '../schema/derivedTypes.ts';
 import type { DrizzleDBAccess } from '../schema/index.ts';
+
+export type AdBreakDetectionTarget = {
+  programId: string;
+  programVersionId: string;
+  filePath: string;
+};
 
 @injectable()
 export class BasicProgramRepository {
@@ -167,6 +177,87 @@ export class BasicProgramRepository {
     }
 
     return result;
+  }
+
+  /**
+   * Fetch the local media file path + latest version id for the given programs
+   * (or all content programs when no ids are given), so an offline analysis
+   * pass can run against the file. Only programs that have both a version and a
+   * resolvable local file path are returned.
+   */
+  async getProgramsForAdBreakDetection(
+    ids?: string[] | readonly string[],
+  ): Promise<AdBreakDetectionTarget[]> {
+    const programs = await this.drizzleDB.query.program.findMany({
+      where:
+        ids && ids.length > 0
+          ? (fields, { inArray }) => inArray(fields.uuid, uniq(ids))
+          : undefined,
+      columns: { uuid: true, filePath: true },
+      with: {
+        versions: {
+          columns: { uuid: true, createdAt: true },
+          with: {
+            mediaFiles: { columns: { path: true } },
+          },
+        },
+      },
+    });
+
+    const targets: AdBreakDetectionTarget[] = [];
+    for (const program of programs) {
+      // Prefer the most recently created version.
+      const version = maxBy(program.versions, (v) => +v.createdAt);
+      if (!version) {
+        continue;
+      }
+      const filePath = version.mediaFiles[0]?.path ?? program.filePath;
+      if (!isNonEmptyString(filePath)) {
+        continue;
+      }
+      targets.push({
+        programId: program.uuid,
+        programVersionId: version.uuid,
+        filePath,
+      });
+    }
+    return targets;
+  }
+
+  /**
+   * Replace the persisted `ad_break` chapters for a program version with the
+   * given break offsets (ms from the start of the program). Existing ad_break
+   * chapters for the version are removed first so detection is idempotent.
+   */
+  async replaceAdBreakChapters(
+    programVersionId: string,
+    offsetsMs: readonly number[],
+  ): Promise<void> {
+    await this.drizzleDB
+      .delete(ProgramChapter)
+      .where(
+        and(
+          eq(ProgramChapter.programVersionId, programVersionId),
+          eq(ProgramChapter.chapterType, 'ad_break'),
+        ),
+      );
+
+    if (offsetsMs.length === 0) {
+      return;
+    }
+
+    const sorted = uniq([...offsetsMs]).sort((a, b) => a - b);
+    await this.drizzleDB.insert(ProgramChapter).values(
+      sorted.map((offsetMs, index) => ({
+        uuid: v4(),
+        index,
+        startTime: offsetMs,
+        endTime: offsetMs,
+        title: null,
+        chapterType: 'ad_break' as const,
+        programVersionId,
+      })),
+    );
   }
 
 

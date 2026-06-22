@@ -19,6 +19,7 @@ import type {
 import type { ProgramExternalIdType } from './custom_types/ProgramExternalIdType.js';
 import type { PageParams } from './interfaces/IChannelDB.js';
 import { BasicProgramRepository } from './program/BasicProgramRepository.ts';
+import type { AdBreakDetectionTarget } from './program/BasicProgramRepository.ts';
 import { ProgramExternalIdRepository } from './program/ProgramExternalIdRepository.ts';
 import { ProgramGroupingRepository } from './program/ProgramGroupingRepository.ts';
 import { ProgramGroupingUpsertRepository } from './program/ProgramGroupingUpsertRepository.ts';
@@ -111,6 +112,19 @@ export class ProgramDB implements IProgramDB {
     ids: string[] | readonly string[],
   ): Promise<Map<string, number[]>> {
     return this.basicProg.getAdBreakOffsetsByProgramIds(ids);
+  }
+
+  getProgramsForAdBreakDetection(
+    ids?: string[] | readonly string[],
+  ): Promise<AdBreakDetectionTarget[]> {
+    return this.basicProg.getProgramsForAdBreakDetection(ids);
+  }
+
+  replaceAdBreakChapters(
+    programVersionId: string,
+    offsetsMs: readonly number[],
+  ): Promise<void> {
+    return this.basicProg.replaceAdBreakChapters(programVersionId, offsetsMs);
   }
 
   getProgramGrouping(
