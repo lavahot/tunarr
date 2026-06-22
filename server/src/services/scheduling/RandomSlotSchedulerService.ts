@@ -53,7 +53,7 @@ export class SlotSchedulerService {
   async schedule(
     request: SlotScheduleServiceRequest,
   ): Promise<SlotScheduleResult> {
-    const slotPrograms =
+    const { programs: slotPrograms, detectedBreaks } =
       await this.slotSchedulerHelper.collectSlotProgramming(request);
 
     return new RandomSlotScheduler(request.schedule).generateSchedule(
@@ -61,6 +61,7 @@ export class SlotSchedulerService {
       request.seed,
       request.discardCount,
       request.startTime ? dayjs(request.startTime) : undefined,
+      detectedBreaks,
     );
   }
 }

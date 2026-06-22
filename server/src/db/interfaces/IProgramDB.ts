@@ -1,4 +1,5 @@
 import type { ProgramExternalIdType } from '@/db/custom_types/ProgramExternalIdType.js';
+import type { AdBreakDetectionTarget } from '@/db/program/BasicProgramRepository.js';
 import type {
   NewProgramDao,
   ProgramDao,
@@ -60,6 +61,19 @@ export interface IProgramDB {
     ids: string[] | readonly string[],
     batchSize?: number,
   ): Promise<MarkRequired<ProgramWithRelationsOrm, 'externalIds'>[]>;
+
+  getAdBreakOffsetsByProgramIds(
+    ids: string[] | readonly string[],
+  ): Promise<Map<string, number[]>>;
+
+  getProgramsForAdBreakDetection(
+    ids?: string[] | readonly string[],
+  ): Promise<AdBreakDetectionTarget[]>;
+
+  replaceAdBreakChapters(
+    programVersionId: string,
+    offsetsMs: readonly number[],
+  ): Promise<void>;
 
   getProgramGrouping(
     id: string,

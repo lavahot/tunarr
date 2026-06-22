@@ -6,6 +6,7 @@ import {
   ArchiveDatabaseBackupKey,
 } from '@/db/backup/ArchiveDatabaseBackup.js';
 import { CleanupSessionsTask } from '@/tasks/CleanupSessionsTask.js';
+import { DetectAdBreaksTask } from '@/tasks/DetectAdBreaksTask.js';
 import { OnDemandChannelStateTask } from '@/tasks/OnDemandChannelStateTask.js';
 import { ReconcileProgramDurationsTask } from '@/tasks/ReconcileProgramDurationsTask.js';
 import { UpdateXmlTvTask } from '@/tasks/UpdateXmlTvTask.js';
@@ -59,6 +60,9 @@ const TasksModule = new ContainerModule(({ bind }) => {
     autoFactoryKey(ReconcileProgramDurationsTask),
     ReconcileProgramDurationsTask,
   );
+
+  bind(DetectAdBreaksTask).toSelf();
+  bindAutoFactory(bind, autoFactoryKey(DetectAdBreaksTask), DetectAdBreaksTask);
 
   bind(ClearM3uCacheTask).toSelf();
 

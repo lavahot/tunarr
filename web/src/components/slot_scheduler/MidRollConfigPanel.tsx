@@ -26,11 +26,25 @@ import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-type MidRollBreakRuleFormFields = {
+type MidRollComputedBreakRuleFormFields = {
   type: 'fixed_interval' | 'percentage' | 'initial_then_interval';
   intervalMs?: number;
   points?: number[];
   initialDelayMs?: number;
+};
+
+type MidRollBreakRuleFormFields = {
+  type:
+    | 'fixed_interval'
+    | 'percentage'
+    | 'initial_then_interval'
+    | 'detected';
+  intervalMs?: number;
+  points?: number[];
+  initialDelayMs?: number;
+  // `detected` rule fields
+  minSpacingMs?: number;
+  fallback?: MidRollComputedBreakRuleFormFields;
 };
 
 type MidRollFormFields = {
@@ -70,6 +84,7 @@ const breakRuleLabels: Record<
   fixed_interval: msg`Fixed Interval`,
   percentage: msg`Percentage-Based`,
   initial_then_interval: msg`Initial Delay + Interval`,
+  detected: msg`Detected Black Frames`,
 };
 
 function msToMinutes(ms: number): number {
@@ -80,6 +95,14 @@ function minutesToMs(minutes: number): number {
   return dayjs.duration({ minutes }).asMilliseconds();
 }
 
+function msToSeconds(ms: number): number {
+  return Math.round(dayjs.duration(ms).asSeconds());
+}
+
+function secondsToMs(seconds: number): number {
+  return dayjs.duration({ seconds }).asMilliseconds();
+}
+
 export const MidRollConfigPanel = () => {
   const { control, watch, setValue, getValues } =
     useFormContext<MidRollFormFields>();
@@ -87,6 +110,7 @@ export const MidRollConfigPanel = () => {
   const breakRuleType = watch('midRoll.breakRule.type');
   const points = watch('midRoll.breakRule.points');
   const strategy = watch('midRoll.strategy');
+  const detectedFallbackType = watch('midRoll.breakRule.fallback.type');
 
   const [newPoint, setNewPoint] = useState('');
   const [durationMode, setDurationMode] = useState<'fixed' | 'range'>(() =>
@@ -126,6 +150,13 @@ export const MidRollConfigPanel = () => {
           type: 'initial_then_interval',
           initialDelayMs: minutesToMs(15),
           intervalMs: minutesToMs(30),
+        });
+        break;
+      case 'detected':
+        setValue('midRoll.breakRule', {
+          type: 'detected',
+          minSpacingMs: secondsToMs(30),
+          fallback: { type: 'fixed_interval', intervalMs: minutesToMs(30) },
         });
         break;
     }
@@ -307,6 +338,138 @@ export const MidRollConfigPanel = () => {
               />
             )}
           />
+        </Stack>
+      )}
+
+      {breakRuleType === 'detected' && (
+        <Stack spacing={2}>
+          <Typography variant="body2" color="text.secondary">
+            <Trans>
+              Insert breaks at black frames / silence detected offline in the
+              program's media (run the "Detect Ad Breaks" task to populate
+              these). Use the fallback below for programs with no detected
+              breaks.
+            </Trans>
+          </Typography>
+          <Controller
+            control={control}
+            name="midRoll.breakRule.minSpacingMs"
+            render={({ field }) => (
+              <TextField
+                label={t`Minimum Spacing (seconds)`}
+                type="number"
+                inputProps={{ min: 1 }}
+                value={
+                  field.value !== undefined ? msToSeconds(field.value) : ''
+                }
+                onChange={(e) =>
+                  field.onChange(
+                    e.target.value === ''
+                      ? undefined
+                      : secondsToMs(Number(e.target.value)),
+                  )
+                }
+                helperText={t`Collapse detected breaks closer together than this`}
+              />
+            )}
+          />
+          <FormControl fullWidth>
+            <InputLabel>{t`Fallback (no breaks detected)`}</InputLabel>
+            <Select
+              label={t`Fallback (no breaks detected)`}
+              value={detectedFallbackType ?? 'none'}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === 'none') {
+                  setValue('midRoll.breakRule.fallback', undefined);
+                } else if (value === 'fixed_interval') {
+                  setValue('midRoll.breakRule.fallback', {
+                    type: 'fixed_interval',
+                    intervalMs: minutesToMs(30),
+                  });
+                } else if (value === 'percentage') {
+                  setValue('midRoll.breakRule.fallback', {
+                    type: 'percentage',
+                    points: [50],
+                  });
+                } else if (value === 'initial_then_interval') {
+                  setValue('midRoll.breakRule.fallback', {
+                    type: 'initial_then_interval',
+                    initialDelayMs: minutesToMs(15),
+                    intervalMs: minutesToMs(30),
+                  });
+                }
+              }}
+            >
+              <MenuItem value="none">{t`None`}</MenuItem>
+              {Object.entries(breakRuleLabels)
+                .filter(([value]) => value !== 'detected')
+                .map(([value, label]) => (
+                  <MenuItem key={value} value={value}>
+                    {i18n.t(label)}
+                  </MenuItem>
+                ))}
+            </Select>
+          </FormControl>
+          {detectedFallbackType === 'fixed_interval' && (
+            <Controller
+              control={control}
+              name="midRoll.breakRule.fallback.intervalMs"
+              render={({ field }) => (
+                <TextField
+                  label={t`Fallback Interval (minutes)`}
+                  type="number"
+                  inputProps={{ min: 1 }}
+                  value={
+                    field.value !== undefined ? msToMinutes(field.value) : ''
+                  }
+                  onChange={(e) =>
+                    field.onChange(minutesToMs(Number(e.target.value)))
+                  }
+                />
+              )}
+            />
+          )}
+          {detectedFallbackType === 'initial_then_interval' && (
+            <Stack direction="row" spacing={2}>
+              <Controller
+                control={control}
+                name="midRoll.breakRule.fallback.initialDelayMs"
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    label={t`Fallback Initial Delay (minutes)`}
+                    type="number"
+                    inputProps={{ min: 1 }}
+                    value={
+                      field.value !== undefined ? msToMinutes(field.value) : ''
+                    }
+                    onChange={(e) =>
+                      field.onChange(minutesToMs(Number(e.target.value)))
+                    }
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="midRoll.breakRule.fallback.intervalMs"
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    label={t`Fallback Interval (minutes)`}
+                    type="number"
+                    inputProps={{ min: 1 }}
+                    value={
+                      field.value !== undefined ? msToMinutes(field.value) : ''
+                    }
+                    onChange={(e) =>
+                      field.onChange(minutesToMs(Number(e.target.value)))
+                    }
+                  />
+                )}
+              />
+            </Stack>
+          )}
         </Stack>
       )}
 

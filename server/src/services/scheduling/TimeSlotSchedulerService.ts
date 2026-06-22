@@ -53,7 +53,7 @@ export class TimeSlotSchedulerService {
   async schedule(
     request: TimeSlotScheduleServiceRequest,
   ): Promise<TimeSlotScheduleResult> {
-    const slotPrograms =
+    const { programs: slotPrograms, detectedBreaks } =
       await this.slotSchedulerHelper.collectSlotProgramming(request);
 
     return scheduleTimeSlots(
@@ -62,6 +62,7 @@ export class TimeSlotSchedulerService {
       request.seed,
       request.discardCount ?? 0,
       request.startTime ? dayjs(request.startTime) : undefined,
+      detectedBreaks,
     );
   }
 }
