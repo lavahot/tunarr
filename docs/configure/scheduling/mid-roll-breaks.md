@@ -15,7 +15,7 @@ When editing a slot in the Slot Editor or Time Slots editor, add a filler list a
 
 ## Break Positioning
 
-Mid-roll breaks support three positioning rules that control _where_ breaks are inserted within a program.
+Mid-roll breaks support four positioning rules that control _where_ breaks are inserted within a program.
 
 ### Fixed Interval
 
@@ -48,7 +48,24 @@ Combines an initial delay before the first break with a regular interval for sub
 
 A 2-hour movie with a 15-minute initial delay and 30-minute interval gets breaks at 15m, 45m, 75m, and 105m.
 
-## Break Duration
+### Detected Black Frames
+
+Inserts breaks at points detected directly from the program's media — the short stretches of black frames (usually combined with silence) that broadcasters insert where commercials originally aired. This places breaks where the program _itself_ was authored to be interrupted, rather than at mechanical time intervals.
+
+Before this rule can place breaks, the candidate break points must be detected and stored for each program by running the **Detect Ad Breaks** task (see [Detecting Break Points](#detecting-break-points) below). Programs that have not been analyzed — or have no detected breaks — fall back to the rule configured under **Fallback**.
+
+| Setting | Description |
+|---------|-------------|
+| **Minimum Spacing** | Detected break points closer together than this are collapsed into a single break. Helps merge a cluster of black frames (e.g., a fade-out/fade-in pair) into one break. |
+| **Fallback** | The positioning rule (None, Fixed Interval, Percentage-Based, or Initial Delay + Interval) used for programs with no detected break points. **None** skips breaks entirely for un-analyzed programs. |
+
+#### Detecting Break Points
+
+Detection is performed offline by the **Detect Ad Breaks** task, which runs an FFmpeg analysis pass over each program's media using the `blackdetect` and `silencedetect` filters. A break point is recorded at the midpoint of each qualifying black interval (optionally requiring overlapping silence). Detected points are persisted per program as `ad_break` chapter markers and reused by every slot that selects the **Detected Black Frames** rule.
+
+The detection thresholds (minimum black-frame duration, black-frame picture threshold, silence noise floor and duration, and whether silence is required) are configured on the task itself. Re-running the task replaces any previously detected break points for the analyzed programs.
+
+
 
 Break duration can be configured in two modes:
 
